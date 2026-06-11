@@ -1,0 +1,254 @@
+// CleanPro SaaS - Production Schema v3
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          String    @default("staff")
+  avatar        String?
+  phone         String?
+  isActive      Boolean   @default(true)
+  lastLogin     DateTime?
+  staffId       String?   @unique
+  staff         Staff?    @relation(fields: [staffId], references: [id])
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Staff {
+  id               String    @id @default(cuid())
+  name             String
+  phone            String
+  email            String?
+  role             String
+  area             String
+  icNumber         String?
+  colorCode        String    @default("teal")
+  avatar           String?
+  status           String    @default("active")
+  joinDate         DateTime  @default(now())
+  emergencyContact String?
+  bankAccount      String?
+  notes            String?
+  user             User?
+  jobs             Job[]
+  expenses         Expense[]
+  dailyReports     DailyReport[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Client {
+  id              String    @id @default(cuid())
+  name            String
+  phone           String
+  email           String?
+  company         String?
+  address         String
+  area            String
+  postcode        String?
+  frequency       String    @default("weekly")
+  assignedStaffId String?
+  notes           String?
+  status          String    @default("active")
+  source          String?
+  totalJobs       Int       @default(0)
+  totalSpent      Float     @default(0)
+  addresses       ClientAddress[]
+  jobs            Job[]
+  invoices        Invoice[]
+  quotes          Quote[]
+  payments        Payment[]
+  attachments     Attachment[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model ClientAddress {
+  id        String  @id @default(cuid())
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  label     String
+  address   String
+  area      String
+  postcode  String?
+  isDefault Boolean @default(false)
+}
+
+model Job {
+  id               String    @id @default(cuid())
+  jobNumber        String    @unique
+  clientId         String
+  client           Client    @relation(fields: [clientId], references: [id])
+  staffId          String
+  staff            Staff     @relation(fields: [staffId], references: [id])
+  addressId        String?
+  serviceType      String    @default("regular")
+  date             DateTime
+  startTime        String
+  endTime          String
+  duration         Float?
+  frequency        String    @default("once")
+  recurringGroupId String?
+  status           String    @default("scheduled")
+  priority         String    @default("normal")
+  notes            String?
+  internalNotes    String?
+  cashCollected    Float?
+  invoiceGenerated Boolean   @default(false)
+  invoice          Invoice?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Invoice {
+  id          String    @id @default(cuid())
+  number      String    @unique
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id])
+  jobId       String?   @unique
+  job         Job?      @relation(fields: [jobId], references: [id])
+  issueDate   DateTime  @default(now())
+  dueDate     DateTime
+  items       InvoiceItem[]
+  subtotal    Float     @default(0)
+  taxRate     Float     @default(0)
+  tax         Float     @default(0)
+  discount    Float     @default(0)
+  total       Float     @default(0)
+  amountPaid  Float     @default(0)
+  balance     Float     @default(0)
+  status      String    @default("pending")
+  notes       String?
+  terms       String?
+  payments    Payment[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Float   @default(1)
+  unitPrice   Float
+  total       Float
+}
+
+model Quote {
+  id               String    @id @default(cuid())
+  number           String    @unique
+  clientId         String?
+  client           Client?   @relation(fields: [clientId], references: [id])
+  clientName       String
+  clientPhone      String?
+  clientEmail      String?
+  serviceType      String
+  propertySize     Float?
+  propertyType     String?
+  amount           Float
+  notes            String?
+  validUntil       DateTime?
+  status           String    @default("pending")
+  convertedToJobId String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  invoiceId   String?
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+  amount      Float
+  method      String
+  reference   String?
+  date        DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  staffId     String?
+  staff       Staff?   @relation(fields: [staffId], references: [id])
+  category    String
+  description String
+  amount      Float
+  date        DateTime @default(now())
+  receiptUrl  String?
+  approved    Boolean  @default(false)
+  approvedBy  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DailyReport {
+  id           String   @id @default(cuid())
+  staffId      String
+  staff        Staff    @relation(fields: [staffId], references: [id])
+  date         DateTime
+  clientName   String
+  jobId        String?
+  cashReceived Float    @default(0)
+  notes        String?
+  photos       String?
+  submitted    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Attachment {
+  id          String   @id @default(cuid())
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id])
+  name        String
+  url         String
+  type        String
+  size        Int?
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  title       String
+  message     String
+  type        String   @default("info")
+  read        Boolean  @default(false)
+  link        String?
+  createdAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String
+  resource    String
+  resourceId  String?
+  details     String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
